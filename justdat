@@ -1,0 +1,193 @@
+//+------------------------------------------------------------------+
+//|                                                            30MINS |
+//|                                                FoolishBoyConcepts|
+//|                                                       03/30/2021 |
+//+------------------------------------------------------------------+
+extern int  MinAccThreshold = 70;
+extern int  MinAccBal2Trade = 70;
+
+string OrdrSymb;
+string MrktBiaz;
+double MACD, SIGNAL, OrderQty;
+double MacdN, MrktOPrice, LotSize;;
+double SignalN, MovingAvDiff;
+double PriceAsk, PriceBid;
+int  Ticket, OrderC, OrderM;
+double PipGainOrLoss, PriceGainOrLoss, AccBal, MaExp;
+
+//+------------------------------------------------------------------+
+//|                                                                  |
+//+------------------------------------------------------------------+
+void OnTick()
+  {
+   PriceAsk = MarketInfo(Symbol(), MODE_ASK);
+   PriceBid = MarketInfo(Symbol(), MODE_BID);
+   MACD = iMACD(_Symbol, _Period, 25, 50, 50, PRICE_CLOSE, MODE_MAIN, 1);
+   SIGNAL = iMACD(_Symbol, _Period, 25, 50, 50, PRICE_CLOSE, MODE_SIGNAL, 1);
+   MacdN = NormalizeDouble(MACD, 6);
+   SignalN = NormalizeDouble(SIGNAL, 6);
+   MovingAvDiff = NormalizeDouble((MacdN-SignalN), 6);
+   PipGainOrLoss = (PriceGainOrLoss/_Point);
+   AccBal = NormalizeDouble(AccountBalance(), 2);
+   LotSize = NormalizeDouble((AccBal/10000), 2);
+   MaExp = iMA(_Symbol,_Period,25,1,MODE_EMA,PRICE_CLOSE,1);
+
+   if(MacdN >= 0.000001)
+     {
+      if(SignalN <= 0.00000)
+        {
+         MrktBiaz = "BUY";
+        }
+     }
+   if(MacdN <= -0.000001)
+     {
+      if(SignalN >= 0.0000)
+        {
+         MrktBiaz = "SELL";
+        }
+     }
+   for(int i = 0; i <= (OrdersTotal()-1);  i++)
+     {
+      if(OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+        {
+         RefreshRates();
+         Ticket = OrderTicket();
+         OrdrSymb = OrderSymbol();
+         OrderQty = OrderLots();
+         MrktOPrice = OrderOpenPrice();
+
+         if(OrdersTotal()!=0)
+           {
+            if(OrderType() == OP_BUY)
+              {
+               PriceGainOrLoss = (PriceAsk - MrktOPrice);
+              }
+            if(OrderType() == OP_SELL)
+              {
+               PriceGainOrLoss = (MrktOPrice - PriceBid);
+              }
+            if(PipGainOrLoss<=-100)
+              {
+
+               RefreshRates();
+               OrderC = OrderClose(Ticket,OrderQty,OrdrSymb, Bid);
+
+
+              }
+            if(PipGainOrLoss==400)
+              {
+
+               OrderC = OrderClose(Ticket,OrderQty,OrdrSymb, Ask);
+              }
+            if(MacdN >= 0.000001)
+               if(SignalN <= -0.000001)
+             //   if(MrktBiaz == "SELL")
+                    {
+                     if(OrderType() == OP_SELL)
+                       {
+                        RefreshRates();
+                        OrderC = OrderClose(Ticket,OrderQty,OrdrSymb, Ask);
+                       }
+                    }
+            if(MacdN <= -0.000001)
+               if(SignalN >= 0.000001)
+                //  if(MrktBiaz == "BUY")
+                    {
+                     if(OrderType()==OP_BUY)
+                       {
+                        RefreshRates();
+                        OrderC = OrderClose(Ticket,OrderQty,OrdrSymb, Bid);
+                       }
+                    }
+            if(AccountBalance() <= MinAccThreshold)
+              {
+               if(OrderType()==OP_BUY)
+                 {
+                  RefreshRates();
+                  OrderC = OrderClose(Ticket,OrderQty,OrdrSymb, Ask);
+                 }
+               if(OrderType()==OP_SELL)
+                 {
+                  RefreshRates();
+                  OrderC = OrderClose(Ticket,OrderQty,OrdrSymb, Bid);
+                 }
+              }
+      
+           }
+        }
+     }
+//+------------------------------------------------------------------+
+
+if(MacdN >= 0.000005)
+  
+     {
+       if(MacdN <= 0.0001)
+        {
+         if(SignalN <= 0.000)
+           {
+            if(MaExp < PriceAsk)
+               if(OrdersTotal()== 0)
+                 {
+                  if(AccBal >= MinAccBal2Trade)
+                    {
+                     OrderC = OrderClose(Ticket,OrderQty,OrdrSymb, Ask);
+                     RefreshRates();
+                     int buy =  OrderSend(_Symbol,OP_BUY,LotSize,Ask,3,
+                                        Ask-120*_Point
+                                     ,Ask+400*_Point,NULL,11,0,Green);
+                                        //  int buy =  OrderSend(_Symbol,OP_BUY,LotSize,Ask,3,
+                                          //OrderM,OrderM,NULL,11,0,Green);
+                    }
+                 }
+           }
+        }
+     }
+if(MacdN <= -0.000005)
+ 
+     {
+        if(MacdN >= -0.0001)
+        {
+         if(SignalN >= 0.000)
+          {
+            if(MaExp > PriceBid)
+               if(OrdersTotal()==0)
+                 {
+                  if(AccBal >= MinAccBal2Trade)
+                    {
+                     OrderC = OrderClose(Ticket,OrderQty,OrdrSymb, Ask);
+                     RefreshRates();
+                   int SELL =  OrderSend(_Symbol,OP_SELL,LotSize,Bid,3,
+                                         Bid+120*_Point
+                                          ,Bid-400*_Point,NULL,22,0,Red);
+                               //    int SELL =  OrderSend(_Symbol,OP_SELL,LotSize,Bid,3,
+                                 //         OrderM,OrderM,NULL,22,0,Red);
+                    }
+                 }
+           }
+        }
+     }
+
+    if(PipGainOrLoss == 40)
+              {
+               if(OrderType() == OP_BUY)
+                 {
+                  OrderM = OrderModify(Ticket,PriceAsk, Bid-100*_Point,Ask+350*_Point, 0, Yellow);
+                 }
+               if(OrderType() == OP_SELL)
+                 {
+                  OrderM = OrderModify(Ticket,PriceBid, Ask+100*_Point,Bid-300*_Point, 0, Yellow);
+                 }
+              }
+              
+           
+   Print(Ticket,OrderQty,OrdrSymb);
+
+   Alert(LotSize);
+   Alert(AccBal);
+   Alert(PipGainOrLoss);
+   Alert(MovingAvDiff);
+   Alert(OrdrSymb);
+  };
+//+------------------------------------------------------------------+
+
+//+------------------------------------------------------------------+
